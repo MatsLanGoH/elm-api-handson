@@ -59,6 +59,7 @@ type Endpoint
 type Msg
     = GetData Endpoint
     | GotJsonResponse Endpoint (Result Http.Error String)
+    | GotJsonResponseMany Endpoint (Result Http.Error (List String))
 
 
 
@@ -72,7 +73,7 @@ pizzaNameDecoder =
 
 pizzasNameDecoder : Decoder (List String)
 pizzasNameDecoder =
-    list pizzaNameDecoder
+    field "pizzas" (list string)
 
 
 drinkDecoder : Decoder String
@@ -84,38 +85,40 @@ drinkDecoder =
 -- UPDATE
 
 
+httpRequestOne res endpoint decoder =
+    Http.get
+        { url = baseApiUrl ++ res
+        , expect = Http.expectJson (GotJsonResponse endpoint) decoder
+        }
+
+
+httpRequestMany : String -> Endpoint -> Decoder (List String) -> Cmd Msg
+httpRequestMany res endpoint decoder =
+    Http.get
+        { url = baseApiUrl ++ res
+        , expect = Http.expectJson (GotJsonResponseMany endpoint) decoder
+        }
+
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         GetData endpoint ->
-            let
-                ( modelUpdate, resource, decoder ) =
-                    case endpoint of
-                        PizzaName ->
-                            ( { model | pizzaNameStatus = Loading }
-                            , "pizza-name"
-                            , pizzaNameDecoder
-                            )
+            case endpoint of
+                PizzaName ->
+                    ( { model | pizzaNameStatus = Loading }
+                    , httpRequestOne "pizza-name" PizzaName pizzaNameDecoder
+                    )
 
-                        PizzaNames ->
-                            ( { model | pizzaNamesStatus = Loading }
-                            , "pizza-names"
-                            , pizzaNameDecoder
-                              -- BROKEN
-                            )
+                PizzaNames ->
+                    ( { model | pizzaNamesStatus = Loading }
+                    , httpRequestMany "pizza-names" PizzaNames pizzasNameDecoder
+                    )
 
-                        Drink ->
-                            ( { model | drinkStatus = Loading }
-                            , "drink"
-                            , drinkDecoder
-                            )
-            in
-            ( modelUpdate
-            , Http.get
-                { url = baseApiUrl ++ resource
-                , expect = Http.expectJson (GotJsonResponse endpoint) decoder
-                }
-            )
+                Drink ->
+                    ( { model | drinkStatus = Loading }
+                    , httpRequestOne "drink" Drink drinkDecoder
+                    )
 
         GotJsonResponse endpoint result ->
             let
@@ -132,11 +135,31 @@ update msg model =
                         PizzaName ->
                             { model | pizzaNameStatus = status }
 
+                        Drink ->
+                            { model | drinkStatus = status }
+
+                        _ ->
+                            model
+            in
+            ( modelUpdate, Cmd.none )
+
+        GotJsonResponseMany endpoint result ->
+            let
+                status =
+                    case result of
+                        Ok resultText ->
+                            Success (String.join ", " resultText)
+
+                        Err _ ->
+                            Failure
+
+                modelUpdate =
+                    case endpoint of
                         PizzaNames ->
                             { model | pizzaNamesStatus = status }
 
-                        Drink ->
-                            { model | drinkStatus = status }
+                        _ ->
+                            model
             in
             ( modelUpdate, Cmd.none )
 
