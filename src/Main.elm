@@ -85,6 +85,7 @@ drinkDecoder =
 -- UPDATE
 
 
+httpRequestOne : String -> Endpoint -> Decoder String -> Cmd Msg
 httpRequestOne res endpoint decoder =
     Http.get
         { url = baseApiUrl ++ res
