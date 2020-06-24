@@ -1,0 +1,122 @@
+{
+  "pizza-name": { "pizza": "トマトのやつ" },
+  "pizza-names": {
+    "pizzas": ["トマトのやつ", "4種類のやつ", "チーズたっぷりのやつ"]
+  },
+  "simple-order": {
+    "items": 3,
+    "total": 21.05,
+    "description": "ピザパーティセット",
+    "paymentMethod": "Credit",
+    "payOnDelivery": false
+  },
+  "drink": {
+    "name": "RedPork",
+    "price": 250
+  },
+  "drinks": [
+    {
+      "name": "RedPork",
+      "price": 250
+    },
+    {
+      "name": "BulletproofMatcha",
+      "price": 800
+    }
+  ],
+  "pizza-mino": {
+    "name": "デカ・肉",
+    "size": "regular",
+    "ingredientCode": "Pizza.Large.Meat",
+    "quantity": 1,
+    "price": 1500,
+    "sauce": {
+      "ingredientCode": "Sauce.Tomato",
+      "quantity": 2
+    },
+    "toppings": [
+      {
+        "name": "燻しベーコン",
+        "ingredientCode": "Topping.Bacon.Smoke",
+        "price": 300,
+        "quantity": 1
+      },
+      {
+        "name": "ヘルシーアスパラ",
+        "ingredientCode": "Topping.Asparagus.Healthy",
+        "price": 250,
+        "quantity": 5
+      }
+    ]
+  },
+  "pizza-menu": {
+    "pizzas": [
+      {
+        "name": "デカ・肉",
+        "size": "large",
+        "ingredientCode": "Pizza.Large.Meat",
+        "quantity": 1,
+        "price": 3500,
+        "sauce": {
+          "ingredientCode": "Sauce.Yakiniku",
+          "quantity": 2
+        },
+        "toppings": [
+          {
+            "name": "燻しベーコン",
+            "ingredientCode": "Topping.Bacon.Smoke",
+            "price": 300,
+            "quantity": 1
+          },
+          {
+            "name": "ヘルシーアスパラ",
+            "ingredientCode": "Topping.Asparagus.Healthy",
+            "price": 250,
+            "quantity": 5
+          }
+        ]
+      },
+      {
+        "name": "ざ・ぷれいん",
+        "size": "regular",
+        "ingredientCode": "Pizza.Regular.Plain",
+        "quantity": 1,
+        "price": 1500,
+        "sauce": {
+          "ingredientCode": "Sauce.Tomato",
+          "quantity": 2
+        },
+        "toppings": [
+          {
+            "name": "モツァレラチーズ",
+            "ingredientCode": "Topping.Cheese.Mozarella",
+            "price": 500,
+            "quantity": 2
+          },
+          {
+            "name": "バジル（生）",
+            "ingredientCode": "Topping.Basil.Fresh",
+            "price": 250,
+            "quantity": 5
+          }
+        ]
+      }
+    ],
+    "drinks": [
+      {
+        "name": "赤ワイン",
+        "ingredientCode": "Drink.Alcohol.WineRed",
+        "quantity": 1,
+        "price": 1200,
+        "alcohol": true
+      },
+      {
+        "name": "ドクペ",
+        "ingredientCode": "Drink.Soft.DocP",
+        "quantity": 3,
+        "price": 150,
+        "alcohol": false
+      }
+    ]
+  }
+}
