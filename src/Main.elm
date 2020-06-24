@@ -22,6 +22,8 @@ baseApiUrl =
 initialModel : Model
 initialModel =
     { pizzaNameStatus = NotLoaded
+    , pizzaNamesStatus = NotLoaded
+    , drinkStatus = NotLoaded
     }
 
 
@@ -31,6 +33,8 @@ initialModel =
 
 type alias Model =
     { pizzaNameStatus : ApiResultStatus
+    , pizzaNamesStatus : ApiResultStatus
+    , drinkStatus : ApiResultStatus
     }
 
 
@@ -41,13 +45,19 @@ type ApiResultStatus
     | Success String
 
 
+type Endpoint
+    = PizzaName
+    | PizzaNames
+    | Drink
+
+
 
 -- MSG
 
 
 type Msg
-    = GetPizzaName
-    | GotApiResponse (Result Http.Error String)
+    = GetData Endpoint
+    | GotApiResponse Endpoint (Result Http.Error String)
 
 
 
@@ -57,25 +67,48 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        GetPizzaName ->
-            ( { model | pizzaNameStatus = Loading }
+        GetData endpoint ->
+            let
+                ( resource, modelUpdate ) =
+                    case endpoint of
+                        PizzaName ->
+                            ( "pizza-name", { model | pizzaNameStatus = Loading } )
+
+                        PizzaNames ->
+                            ( "pizza-names", { model | pizzaNamesStatus = Loading } )
+
+                        Drink ->
+                            ( "drink", { model | drinkStatus = Loading } )
+            in
+            ( modelUpdate
             , Http.get
-                { url = baseApiUrl ++ "pizza-name"
-                , expect = Http.expectString GotApiResponse
+                { url = baseApiUrl ++ resource
+                , expect = Http.expectString (GotApiResponse endpoint)
                 }
             )
 
-        GotApiResponse result ->
-            case result of
-                Ok resultText ->
-                    ( { model | pizzaNameStatus = Success resultText }
-                    , Cmd.none
-                    )
+        GotApiResponse endpoint result ->
+            let
+                status =
+                    case result of
+                        Ok resultText ->
+                            Success resultText
 
-                Err _ ->
-                    ( { model | pizzaNameStatus = Failure }
-                    , Cmd.none
-                    )
+                        Err _ ->
+                            Failure
+
+                modelUpdate =
+                    case endpoint of
+                        PizzaName ->
+                            { model | pizzaNameStatus = status }
+
+                        PizzaNames ->
+                            { model | pizzaNamesStatus = status }
+
+                        Drink ->
+                            { model | drinkStatus = status }
+            in
+            ( modelUpdate, Cmd.none )
 
 
 
@@ -85,13 +118,14 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        ([]
-            ++ viewSinglePizza model.pizzaNameStatus
+        (viewData "Pizza Name" PizzaName model.pizzaNameStatus
+            ++ viewData "Pizza Names" PizzaNames model.pizzaNamesStatus
+            ++ viewData "Drink" Drink model.drinkStatus
         )
 
 
-viewSinglePizza : ApiResultStatus -> List (Html Msg)
-viewSinglePizza apiResultStatus =
+viewData : String -> Endpoint -> ApiResultStatus -> List (Html Msg)
+viewData label endpoint apiResultStatus =
     let
         showResult =
             case apiResultStatus of
@@ -102,13 +136,13 @@ viewSinglePizza apiResultStatus =
                     text "Loading..."
 
                 Failure ->
-                    text "Failed to get pizza name :("
+                    text "Failed to get data :("
 
                 Success resultString ->
                     pre [] [ text resultString ]
     in
-    [ h2 [] [ text "Pizza Name" ]
-    , div [] [ button [ onClick GetPizzaName ] [ text "Get Pizza Name" ] ]
+    [ h2 [] [ text label ]
+    , div [] [ button [ onClick (GetData endpoint) ] [ text "Get Data" ] ]
     , div [] [ showResult ]
     , hr [] []
     ]
