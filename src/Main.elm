@@ -4,6 +4,7 @@ import Browser
 import Html exposing (Html, button, div, h1, h2, hr, pre, text)
 import Html.Events exposing (onClick)
 import Http
+import Json.Decode as D exposing (..)
 
 
 
@@ -57,7 +58,26 @@ type Endpoint
 
 type Msg
     = GetData Endpoint
-    | GotApiResponse Endpoint (Result Http.Error String)
+    | GotJsonResponse Endpoint (Result Http.Error String)
+
+
+
+-- DECODERS
+
+
+pizzaNameDecoder : Decoder String
+pizzaNameDecoder =
+    field "pizza" string
+
+
+pizzasNameDecoder : Decoder (List String)
+pizzasNameDecoder =
+    list pizzaNameDecoder
+
+
+drinkDecoder : Decoder String
+drinkDecoder =
+    field "name" string
 
 
 
@@ -69,25 +89,35 @@ update msg model =
     case msg of
         GetData endpoint ->
             let
-                ( resource, modelUpdate ) =
+                ( modelUpdate, resource, decoder ) =
                     case endpoint of
                         PizzaName ->
-                            ( "pizza-name", { model | pizzaNameStatus = Loading } )
+                            ( { model | pizzaNameStatus = Loading }
+                            , "pizza-name"
+                            , pizzaNameDecoder
+                            )
 
                         PizzaNames ->
-                            ( "pizza-names", { model | pizzaNamesStatus = Loading } )
+                            ( { model | pizzaNamesStatus = Loading }
+                            , "pizza-names"
+                            , pizzaNameDecoder
+                              -- BROKEN
+                            )
 
                         Drink ->
-                            ( "drink", { model | drinkStatus = Loading } )
+                            ( { model | drinkStatus = Loading }
+                            , "drink"
+                            , drinkDecoder
+                            )
             in
             ( modelUpdate
             , Http.get
                 { url = baseApiUrl ++ resource
-                , expect = Http.expectString (GotApiResponse endpoint)
+                , expect = Http.expectJson (GotJsonResponse endpoint) decoder
                 }
             )
 
-        GotApiResponse endpoint result ->
+        GotJsonResponse endpoint result ->
             let
                 status =
                     case result of
