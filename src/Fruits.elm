@@ -1,7 +1,7 @@
 module Fruits exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, h2, hr, p, pre, text)
+import Html exposing (Html, button, div, h1, h2, hr, pre, text)
 import Html.Events exposing (onClick)
 import Http
 
@@ -21,7 +21,12 @@ baseApiUrl =
 
 initialModel : Model
 initialModel =
-    { fruitStatus = NotLoaded
+    { fruit = ""
+    , fruitList = ""
+    , store = ""
+    , storeList = ""
+    , customer = ""
+    , order = ""
     }
 
 
@@ -30,19 +35,22 @@ initialModel =
 
 
 type alias Model =
-    { fruitStatus : ApiResultStatus
+    { fruit : String
+    , fruitList : String
+    , store : String
+    , storeList : String
+    , customer : String
+    , order : String
     }
-
-
-type ApiResultStatus
-    = NotLoaded
-    | Loading
-    | Failure
-    | Success String
 
 
 type Endpoint
     = GetFruit
+    | GetFruitList
+    | GetStore
+    | GetStoreList
+    | GetCustomer
+    | GetOrder
 
 
 
@@ -52,6 +60,11 @@ type Endpoint
 type Msg
     = GetData Endpoint
     | GotFruit (Result Http.Error String)
+    | GotFruitList (Result Http.Error String)
+    | GotStore (Result Http.Error String)
+    | GotStoreList (Result Http.Error String)
+    | GotCustomer (Result Http.Error String)
+    | GotOrder (Result Http.Error String)
 
 
 
@@ -64,24 +77,52 @@ update msg model =
         GetData endpoint ->
             case endpoint of
                 GetFruit ->
-                    ( { model | fruitStatus = Loading }
+                    ( { model | fruit = "" }
                     , Http.get
                         { url = baseApiUrl ++ "fruit"
                         , expect = Http.expectString GotFruit
                         }
                     )
 
+                GetFruitList ->
+                    ( { model | fruit = "" }
+                    , Http.get
+                        { url = baseApiUrl ++ "fruits"
+                        , expect = Http.expectString GotFruitList
+                        }
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
         GotFruit result ->
             case result of
                 Ok fruit ->
-                    ( { model | fruitStatus = Success fruit }
+                    ( { model | fruit = fruit }
                     , Cmd.none
                     )
 
                 _ ->
-                    ( { model | fruitStatus = Failure }
+                    ( { model | fruit = "Failed :(" }
                     , Cmd.none
                     )
+
+        GotFruitList result ->
+            case result of
+                Ok fruitlist ->
+                    ( { model | fruitList = fruitlist }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | fruitList = "Failed :(" }
+                    , Cmd.none
+                    )
+
+        _ ->
+            ( model
+            , Cmd.none
+            )
 
 
 
@@ -91,31 +132,24 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        (viewData "果物" GetFruit model.fruitStatus)
+        [ h1 [] [ text "果物販売管理システム 🍇🍍🍒" ]
+        , viewItem "果物" GetFruit model.fruit
+        , viewItem "果物（複数）" GetFruitList model.fruitList
+        ]
 
 
-viewData : String -> Endpoint -> ApiResultStatus -> List (Html Msg)
-viewData label endpoint apiResultStatus =
+viewItem : String -> Endpoint -> String -> Html Msg
+viewItem label endpoint item =
     let
-        showResult =
-            case apiResultStatus of
-                NotLoaded ->
-                    text "Not loaded"
-
-                Loading ->
-                    text "Loading..."
-
-                Failure ->
-                    text "Failed to get data :("
-
-                Success resultString ->
-                    pre [] [ text resultString ]
+        showItem =
+            pre [] [ text item ]
     in
-    [ h2 [] [ text label ]
-    , div [] [ button [ onClick (GetData endpoint) ] [ text "Get Data" ] ]
-    , div [] [ showResult ]
-    , hr [] []
-    ]
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , div [] [ showItem ]
+        , hr [] []
+        ]
 
 
 
@@ -124,12 +158,7 @@ viewData label endpoint apiResultStatus =
 
 viewGetterButton : Endpoint -> String -> Html Msg
 viewGetterButton endpoint label =
-    div [] [ button [ onClick (GetData endpoint) ] [ text label ] ]
-
-
-viewNotLoadedText : Html msg
-viewNotLoadedText =
-    text "Not Loaded"
+    div [] [ button [ onClick (GetData endpoint) ] [ text <| label ++ "をGET" ] ]
 
 
 
