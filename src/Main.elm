@@ -1,7 +1,7 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, h2, hr, pre, text)
+import Html exposing (Html, button, div, h2, hr, p, pre, text)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode exposing (..)
@@ -24,7 +24,7 @@ initialModel : Model
 initialModel =
     { pizzaNameStatus = NotLoaded
     , pizzaNamesStatus = NotLoaded
-    , drinkStatus = NotLoaded
+    , drinkStatus = Nothing
     }
 
 
@@ -35,7 +35,7 @@ initialModel =
 type alias Model =
     { pizzaNameStatus : ApiResultStatus
     , pizzaNamesStatus : ApiResultStatus
-    , drinkStatus : ApiResultStatus
+    , drinkStatus : Maybe DrinkItem
     }
 
 
@@ -52,6 +52,12 @@ type Endpoint
     | Drink
 
 
+type alias DrinkItem =
+    { name : String
+    , price : Int
+    }
+
+
 
 -- MSG
 
@@ -60,7 +66,7 @@ type Msg
     = GetData Endpoint
     | GotPizzaName (Result Http.Error String)
     | GotPizzaNames (Result Http.Error (List String))
-    | GotDrink (Result Http.Error String)
+    | GotDrink (Result Http.Error DrinkItem)
 
 
 
@@ -77,9 +83,11 @@ pizzaNamesDecoder =
     field "pizzas" (list string)
 
 
-drinkDecoder : Decoder String
+drinkDecoder : Decoder DrinkItem
 drinkDecoder =
-    field "name" string
+    map2 DrinkItem
+        (field "name" string)
+        (field "price" int)
 
 
 
@@ -108,7 +116,7 @@ update msg model =
                     )
 
                 Drink ->
-                    ( { model | drinkStatus = Loading }
+                    ( { model | drinkStatus = Nothing }
                     , Http.get
                         { url = baseApiUrl ++ "drink"
                         , expect = Http.expectJson GotDrink drinkDecoder
@@ -150,10 +158,10 @@ update msg model =
                 status =
                     case result of
                         Ok resultBody ->
-                            Success resultBody
+                            Just resultBody
 
                         _ ->
-                            Failure
+                            Nothing
 
                 updatedModel =
                     { model | drinkStatus = status }
@@ -170,7 +178,7 @@ view model =
     div []
         (viewData "Pizza Name" PizzaName model.pizzaNameStatus
             ++ viewData "Pizza Names" PizzaNames model.pizzaNamesStatus
-            ++ viewData "Drink" Drink model.drinkStatus
+            ++ viewDrink model.drinkStatus
         )
 
 
@@ -196,6 +204,41 @@ viewData label endpoint apiResultStatus =
     , div [] [ showResult ]
     , hr [] []
     ]
+
+
+viewDrink : Maybe DrinkItem -> List (Html Msg)
+viewDrink drinkItem =
+    let
+        showResult =
+            case drinkItem of
+                Just drink ->
+                    div []
+                        [ p [] [ text <| "name: " ++ drink.name ]
+                        , p [] [ text <| "price: " ++ String.fromInt drink.price ]
+                        ]
+
+                Nothing ->
+                    viewNotLoadedText
+    in
+    [ h2 [] [ text "Drink?" ]
+    , viewGetterButton Drink "Get Drink"
+    , div [] [ showResult ]
+    , hr [] []
+    ]
+
+
+
+-- VIEW HELPERS
+
+
+viewGetterButton : Endpoint -> String -> Html Msg
+viewGetterButton endpoint label =
+    div [] [ button [ onClick (GetData endpoint) ] [ text label ] ]
+
+
+viewNotLoadedText : Html msg
+viewNotLoadedText =
+    text "Not Loaded"
 
 
 
