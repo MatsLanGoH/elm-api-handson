@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Pizzazz exposing (main)
 
 import Browser
 import Html exposing (Html, button, div, h2, hr, p, pre, text)
