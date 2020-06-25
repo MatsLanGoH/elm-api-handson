@@ -33,7 +33,7 @@
 | http://localhost:3000/fruit    | Fruit ※            |
 | http://localhost:3000/fruits   | List Fruit ※       |
 | http://localhost:3000/store    | Store ※            |
-| http://localhost:3000/stores   | List Drink ※       |
+| http://localhost:3000/stores   | List Store ※       |
 | http://localhost:3000/customer | Customer ※         |
 | http://localhost:3000/order    | Order ※            |
 
