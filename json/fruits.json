@@ -1,0 +1,72 @@
+{
+  "fruit": {
+    "name": "いちご",
+    "price": 500
+  },
+  "fruits": {
+    "fruits": [
+      {
+        "name": "いちご",
+        "price": 500
+      },
+      {
+        "name": "バナナ",
+        "price": 200
+      },
+      {
+        "name": "りんご",
+        "price": 300
+      }
+    ]
+  },
+  "store": {
+    "address": "東京都台東区架空町33-22",
+    "owner": "八尾店長"
+  },
+  "stores": {
+    "stores": [
+      {
+        "address": "東京都台東区架空町33-22",
+        "owner": "八尾店長"
+      },
+      {
+        "address": "東京都大田区なんとか市場"
+      }
+    ]
+  },
+  "customer": {
+    "username": "果物好き",
+    "email": "yasai-suki@example.test",
+    "isVip": true
+  },
+  "order": {
+    "order_details": {
+      "customer": {
+        "username": "果物好き",
+        "email": "yasai-suki@example.test",
+        "isVip": true
+      },
+      "store": {
+        "address": "東京都台東区架空町33-22",
+        "owner": "八尾店長"
+      },
+      "fruits": [
+        {
+          "name": "いちご",
+          "price": 500,
+          "amount": 1
+        },
+        {
+          "name": "バナナ",
+          "price": 200,
+          "amount": 3
+        },
+        {
+          "name": "りんご",
+          "price": 300,
+          "amount": 2
+        }
+      ]
+    }
+  }
+}
