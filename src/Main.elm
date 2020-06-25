@@ -1,10 +1,10 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, h1, h2, hr, pre, text)
+import Html exposing (Html, button, div, h2, hr, pre, text)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode as D exposing (..)
+import Json.Decode exposing (..)
 
 
 
@@ -58,8 +58,9 @@ type Endpoint
 
 type Msg
     = GetData Endpoint
-    | GotJsonResponse Endpoint (Result Http.Error String)
-    | GotJsonResponseMany Endpoint (Result Http.Error (List String))
+    | GotPizzaName (Result Http.Error String)
+    | GotPizzaNames (Result Http.Error (List String))
+    | GotDrink (Result Http.Error String)
 
 
 
@@ -71,8 +72,8 @@ pizzaNameDecoder =
     field "pizza" string
 
 
-pizzasNameDecoder : Decoder (List String)
-pizzasNameDecoder =
+pizzaNamesDecoder : Decoder (List String)
+pizzaNamesDecoder =
     field "pizzas" (list string)
 
 
@@ -85,22 +86,6 @@ drinkDecoder =
 -- UPDATE
 
 
-httpRequestOne : String -> Endpoint -> Decoder String -> Cmd Msg
-httpRequestOne res endpoint decoder =
-    Http.get
-        { url = baseApiUrl ++ res
-        , expect = Http.expectJson (GotJsonResponse endpoint) decoder
-        }
-
-
-httpRequestMany : String -> Endpoint -> Decoder (List String) -> Cmd Msg
-httpRequestMany res endpoint decoder =
-    Http.get
-        { url = baseApiUrl ++ res
-        , expect = Http.expectJson (GotJsonResponseMany endpoint) decoder
-        }
-
-
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
@@ -108,43 +93,29 @@ update msg model =
             case endpoint of
                 PizzaName ->
                     ( { model | pizzaNameStatus = Loading }
-                    , httpRequestOne "pizza-name" PizzaName pizzaNameDecoder
+                    , Http.get
+                        { url = baseApiUrl ++ "pizza-name"
+                        , expect = Http.expectJson GotPizzaName pizzaNameDecoder
+                        }
                     )
 
                 PizzaNames ->
                     ( { model | pizzaNamesStatus = Loading }
-                    , httpRequestMany "pizza-names" PizzaNames pizzasNameDecoder
+                    , Http.get
+                        { url = baseApiUrl ++ "pizza-names"
+                        , expect = Http.expectJson GotPizzaNames pizzaNamesDecoder
+                        }
                     )
 
                 Drink ->
                     ( { model | drinkStatus = Loading }
-                    , httpRequestOne "drink" Drink drinkDecoder
+                    , Http.get
+                        { url = baseApiUrl ++ "drink"
+                        , expect = Http.expectJson GotDrink drinkDecoder
+                        }
                     )
 
-        GotJsonResponse endpoint result ->
-            let
-                status =
-                    case result of
-                        Ok resultText ->
-                            Success resultText
-
-                        Err _ ->
-                            Failure
-
-                modelUpdate =
-                    case endpoint of
-                        PizzaName ->
-                            { model | pizzaNameStatus = status }
-
-                        Drink ->
-                            { model | drinkStatus = status }
-
-                        _ ->
-                            model
-            in
-            ( modelUpdate, Cmd.none )
-
-        GotJsonResponseMany endpoint result ->
+        GotPizzaNames result ->
             let
                 status =
                     case result of
@@ -154,15 +125,40 @@ update msg model =
                         Err _ ->
                             Failure
 
-                modelUpdate =
-                    case endpoint of
-                        PizzaNames ->
-                            { model | pizzaNamesStatus = status }
+                updatedModel =
+                    { model | pizzaNamesStatus = status }
+            in
+            ( updatedModel, Cmd.none )
+
+        GotPizzaName result ->
+            let
+                status =
+                    case result of
+                        Ok resultBody ->
+                            Success resultBody
 
                         _ ->
-                            model
+                            Failure
+
+                updatedModel =
+                    { model | pizzaNameStatus = status }
             in
-            ( modelUpdate, Cmd.none )
+            ( updatedModel, Cmd.none )
+
+        GotDrink result ->
+            let
+                status =
+                    case result of
+                        Ok resultBody ->
+                            Success resultBody
+
+                        _ ->
+                            Failure
+
+                updatedModel =
+                    { model | drinkStatus = status }
+            in
+            ( updatedModel, Cmd.none )
 
 
 
