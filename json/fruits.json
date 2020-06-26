@@ -44,7 +44,7 @@
       "customer": {
         "username": "果物好き",
         "email": "yasai-suki@example.test",
-        "isVip": true
+        "isVip": false
       },
       "store": {
         "address": "東京都台東区架空町33-22",

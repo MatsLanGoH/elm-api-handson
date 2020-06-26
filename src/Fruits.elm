@@ -4,6 +4,9 @@ import Browser
 import Html exposing (Html, button, div, h1, h2, hr, pre, text)
 import Html.Events exposing (onClick)
 import Http
+import Json.Decode as D exposing (Decoder, field, int, string)
+import Html exposing (p)
+import Json.Decode exposing (list)
 
 
 
@@ -21,8 +24,8 @@ baseApiUrl =
 
 initialModel : Model
 initialModel =
-    { fruit = ""
-    , fruitList = ""
+    { fruit = noFruit
+    , fruitList = [] 
     , store = ""
     , storeList = ""
     , customer = ""
@@ -35,14 +38,24 @@ initialModel =
 
 
 type alias Model =
-    { fruit : String
-    , fruitList : String
+    { fruit : Fruit
+    , fruitList : List Fruit
     , store : String
     , storeList : String
     , customer : String
     , order : String
     }
 
+type alias Fruit = 
+    { name : String
+    , price : Int
+    }
+
+noFruit : Fruit 
+noFruit = 
+    { name= ""
+    , price= 0
+    }
 
 type Endpoint
     = GetFruit
@@ -59,13 +72,27 @@ type Endpoint
 
 type Msg
     = GetData Endpoint
-    | GotFruit (Result Http.Error String)
-    | GotFruitList (Result Http.Error String)
+    | GotFruit (Result Http.Error Fruit)
+    | GotFruitList (Result Http.Error (List Fruit))
     | GotStore (Result Http.Error String)
     | GotStoreList (Result Http.Error String)
     | GotCustomer (Result Http.Error String)
     | GotOrder (Result Http.Error String)
 
+
+
+-- DECODER
+
+
+fruitDecoder : Decoder Fruit
+fruitDecoder =
+    D.map2 Fruit
+        (field "name" string)
+        (field "price" int)
+
+fruitListDecoder : Decoder (List Fruit)
+fruitListDecoder = 
+    field "fruits" (list fruitDecoder)
 
 
 -- UPDATE
@@ -77,18 +104,18 @@ update msg model =
         GetData endpoint ->
             case endpoint of
                 GetFruit ->
-                    ( { model | fruit = "" }
+                    ( { model | fruit = noFruit }
                     , Http.get
                         { url = baseApiUrl ++ "fruit"
-                        , expect = Http.expectString GotFruit
+                        , expect = Http.expectJson GotFruit fruitDecoder
                         }
                     )
 
                 GetFruitList ->
-                    ( { model | fruit = "" }
+                    ( { model | fruitList = [] }
                     , Http.get
                         { url = baseApiUrl ++ "fruits"
-                        , expect = Http.expectString GotFruitList
+                        , expect = Http.expectJson GotFruitList fruitListDecoder
                         }
                     )
 
@@ -103,7 +130,7 @@ update msg model =
                     )
 
                 _ ->
-                    ( { model | fruit = "Failed :(" }
+                    ( { model | fruit = noFruit }
                     , Cmd.none
                     )
 
@@ -115,7 +142,7 @@ update msg model =
                     )
 
                 _ ->
-                    ( { model | fruitList = "Failed :(" }
+                    ( { model | fruitList = [] }
                     , Cmd.none
                     )
 
@@ -133,8 +160,36 @@ view : Model -> Html Msg
 view model =
     div []
         [ h1 [] [ text "果物販売管理システム 🍇🍍🍒" ]
-        , viewItem "果物" GetFruit model.fruit
-        , viewItem "果物（複数）" GetFruitList model.fruitList
+        , viewFruitItem "果物" GetFruit model.fruit
+        , viewFruitListItem "果物（複数）" GetFruitList model.fruitList
+        ]
+
+
+viewFruitItem : String -> Endpoint -> Fruit -> Html Msg
+viewFruitItem label endpoint fruit =
+    let
+        showItem = div [] [ p [] [ text fruit.name ]
+                          , p [] [ text <| String.fromInt fruit.price]
+                          ]
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , div [] [ showItem ]
+        , hr [] []
+        ]
+
+viewFruitListItem : String -> Endpoint -> List Fruit -> Html Msg
+viewFruitListItem label endpoint fruitList =
+    let
+        showItem = fruitList |> 
+                    List.map (\fruit -> (p [] [ text fruit.name, text <| String.fromInt fruit.price]))
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , div [] showItem
+        , hr [] []
         ]
 
 

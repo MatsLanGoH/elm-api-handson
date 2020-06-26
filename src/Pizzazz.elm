@@ -4,7 +4,7 @@ import Browser
 import Html exposing (Html, button, div, h2, hr, p, pre, text)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode exposing (..)
+import Json.Decode exposing (Decoder, field, string, map2, list, int)
 
 
 
