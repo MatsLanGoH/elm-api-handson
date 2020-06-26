@@ -15,11 +15,15 @@
 ### 2. Elm 環境起動
 
 今回はアプリを用意せず、 `elm-live` を使う想定。
-`create-elm-app` でもよい。
+
+```bash
+ $ elm-live src/Fruits.elm --port 8000
+```
 
 ### 3. Elm の基本実装
 
 それぞれのエンドポイントからのレスポンスを受け取り文字列で表示しましょう。
+※ API + アプリ同時に起動してね。
 
 ### 4. JSON Decoding
 
