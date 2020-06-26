@@ -26,6 +26,13 @@
 それぞれのエンドポイントから受け取ったレスポンスを受け取り、
 いい感じに表示しましょう。
 
+### 5. 課題的なあれ
+
+- [ ] 未実装のエンドポイントを `Http.expectString` で取得して、表示してみよう
+- [ ] それぞれのエンドポイントにあった `Model` つくってみよう
+- [ ] `Http.expectJson` + `Decoder` の組み合わせでJSONをレコードに変換してみよう
+- [ ] それぞれ取得したデータを、いい感じに表示してみよう
+
 ### エンドポイントについて
 
 | エンドポイント                 | レスポンスについて |
@@ -41,4 +48,23 @@
 
 ### 実装ヒント
 
-（まとめていないが、 https://github.com/MatsLanGoH/elm-pokedex のコードちょっと参考になるかも）
+* 公式ガイド: [JSON · An Introduction to Elm](https://guide.elm-lang.jp/effects/json.html)
+* [elm-json-decode-pipeline](https://package.elm-lang.org/packages/NoRedInk/elm-json-decode-pipeline)
+
+  ```elm
+  -- 標準ライブラリ
+  fruitDecoder : Decoder Fruit
+  fruitDecoder = 
+      map2 Fruit
+          (field "name" string)
+          (field "price" int)
+          
+  -- json-decode-pipeline
+  fruitDecoder : Decoder Fruit
+  fruitDecoder =
+      Decode.succeed Fruit
+          |> required "name" string
+          |> required "price" int
+  ```
+        
+* （まとめていないが、 https://github.com/MatsLanGoH/elm-pokedex のコードちょっと参考になるかも）
