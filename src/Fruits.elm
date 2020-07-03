@@ -5,7 +5,7 @@ import Html exposing (Html, button, div, h1, h2, h3, hr, li, p, text, ul)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as D exposing (Decoder, field, int, list, string, succeed)
-import Json.Decode.Pipeline exposing (optional, required)
+import Json.Decode.Pipeline exposing (optional, required, hardcoded)
 
 
 
@@ -70,6 +70,7 @@ type alias OrderDetail =
     { customer : Customer
     , store : Store
     , fruits : List Fruit
+    , tantosha : String
     }
 
 
@@ -101,6 +102,7 @@ noOrder =
     { customer = noCustomer
     , store = noStore
     , fruits = []
+    , tantosha = ""
     }
 
 
@@ -163,13 +165,14 @@ customerDecoder =
         |> required "isVip" D.bool
 
 
-orderDetailDecoder : Decoder OrderDetail
-orderDetailDecoder =
+orderDetailDecoder : String -> Decoder OrderDetail
+orderDetailDecoder tanto =
     field "order_details"
         (D.succeed OrderDetail
             |> required "customer" customerDecoder
             |> required "store" storeDecoder
             |> required "fruits" (list fruitDecoder)
+            |> hardcoded tanto
         )
 
 
@@ -226,7 +229,7 @@ update msg model =
                     ( { model | order = noOrder }
                     , Http.get
                         { url = baseApiUrl ++ "order"
-                        , expect = Http.expectJson GotOrderDetail orderDetailDecoder
+                        , expect = Http.expectJson GotOrderDetail (orderDetailDecoder "matsu")
                         }
                     )
 
@@ -401,50 +404,34 @@ viewStoreListItem label endpoint storeList =
 
 viewCustomerItem : String -> Endpoint -> Customer -> Html Msg
 viewCustomerItem label endpoint customer =
-    let
-        showItem =
-            div []
-                [ p [] [ text customer.username ]
-                , p [] [ text customer.email ]
-                , p []
-                    [ text <|
-                        if customer.isVip == True then
-                            "☆VIP☆"
-
-                        else
-                            ""
-                    ]
-                ]
-    in
     div []
         [ h2 [] [ text label ]
         , viewGetterButton endpoint label
-        , div [] [ showItem ]
+        , renderCustomerElement customer
         , hr [] []
         ]
+
+renderCustomerElement : Customer -> Html msg
+renderCustomerElement customer =
+    div []
+        [ h3 [] [ text "顧客情報" ]
+        , p [] [ text customer.username ]
+        , p [] [ text customer.email ]
+        , p []
+            [ text <|
+                if customer.isVip == True then
+                    "☆VIP☆"
+
+                else
+                    ""
+            ]
+        ]
+
 
 
 viewOrderDetailItem : String -> Endpoint -> OrderDetail -> Html Msg
 viewOrderDetailItem label endpoint order =
     let
-        customer =
-            order.customer
-
-        customerItem =
-            div []
-                [ h3 [] [ text "顧客情報" ]
-                , p [] [ text customer.username ]
-                , p [] [ text customer.email ]
-                , p []
-                    [ text <|
-                        if customer.isVip == True then
-                            "☆VIP☆"
-
-                        else
-                            ""
-                    ]
-                ]
-
         store =
             order.store
 
@@ -493,10 +480,11 @@ viewOrderDetailItem label endpoint order =
     div []
         [ h2 [] [ text label ]
         , viewGetterButton endpoint label
-        , customerItem
+        , renderCustomerElement order.customer
         , storeItem
         , fruitListItem
         , totalPriceItem
+        , p [ ] [ text <| "tantosha " ++ order.tantosha ]
         , hr [] []
         ]
 
