@@ -1,13 +1,11 @@
 module Fruits exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, h1, h2, hr, p, text)
+import Html exposing (Html, button, div, h1, h2, h3, hr, li, p, text, ul)
 import Html.Events exposing (onClick)
 import Http
 import Json.Decode as D exposing (Decoder, field, int, list, string, succeed)
 import Json.Decode.Pipeline exposing (optional, required)
-import Html exposing (li)
-import Html exposing (ul)
 
 
 
@@ -29,8 +27,8 @@ initialModel =
     , fruitList = []
     , store = noStore
     , storeList = []
-    , customer = ""
-    , order = ""
+    , customer = noCustomer
+    , order = noOrder
     }
 
 
@@ -43,14 +41,15 @@ type alias Model =
     , fruitList : List Fruit
     , store : Store
     , storeList : List Store
-    , customer : String
-    , order : String
+    , customer : Customer
+    , order : OrderDetail
     }
 
 
 type alias Fruit =
     { name : String
     , price : Int
+    , amount : Int
     }
 
 
@@ -60,10 +59,25 @@ type alias Store =
     }
 
 
+type alias Customer =
+    { username : String
+    , email : String
+    , isVip : Bool
+    }
+
+
+type alias OrderDetail =
+    { customer : Customer
+    , store : Store
+    , fruits : List Fruit
+    }
+
+
 noFruit : Fruit
 noFruit =
     { name = ""
     , price = 0
+    , amount = 0
     }
 
 
@@ -74,13 +88,29 @@ noStore =
     }
 
 
+noCustomer : Customer
+noCustomer =
+    { username = ""
+    , email = ""
+    , isVip = False
+    }
+
+
+noOrder : OrderDetail
+noOrder =
+    { customer = noCustomer
+    , store = noStore
+    , fruits = []
+    }
+
+
 type Endpoint
     = GetFruit
     | GetFruitList
     | GetStore
     | GetStoreList
     | GetCustomer
-    | GetOrder
+    | GetOrderDetail
 
 
 
@@ -93,20 +123,20 @@ type Msg
     | GotFruitList (Result Http.Error (List Fruit))
     | GotStore (Result Http.Error Store)
     | GotStoreList (Result Http.Error (List Store))
-    | GotCustomer (Result Http.Error String)
-    | GotOrder (Result Http.Error String)
+    | GotCustomer (Result Http.Error Customer)
+    | GotOrderDetail (Result Http.Error OrderDetail)
 
 
 
--- DECODER
+-- DECODERS
 
 
 fruitDecoder : Decoder Fruit
 fruitDecoder =
-    D.map2 Fruit
-        (field "name" string)
-        (field "price" int)
-
+    D.succeed Fruit
+        |> required "name" D.string
+        |> required "price" D.int
+        |> optional "amount" D.int 0
 
 fruitListDecoder : Decoder (List Fruit)
 fruitListDecoder =
@@ -123,6 +153,24 @@ storeDecoder =
 storeListDecoder : Decoder (List Store)
 storeListDecoder =
     field "stores" (list storeDecoder)
+
+
+customerDecoder : Decoder Customer
+customerDecoder =
+    D.succeed Customer
+        |> required "username" D.string
+        |> required "email" D.string
+        |> required "isVip" D.bool
+
+
+orderDetailDecoder : Decoder OrderDetail
+orderDetailDecoder =
+    field "order_details"
+        (D.succeed OrderDetail
+            |> required "customer" customerDecoder
+            |> required "store" storeDecoder
+            |> required "fruits" (list fruitDecoder)
+        )
 
 
 
@@ -166,8 +214,21 @@ update msg model =
                         }
                     )
 
-                _ ->
-                    ( model, Cmd.none )
+                GetCustomer ->
+                    ( { model | customer = noCustomer }
+                    , Http.get
+                        { url = baseApiUrl ++ "customer"
+                        , expect = Http.expectJson GotCustomer customerDecoder
+                        }
+                    )
+
+                GetOrderDetail ->
+                    ( { model | order = noOrder }
+                    , Http.get
+                        { url = baseApiUrl ++ "order"
+                        , expect = Http.expectJson GotOrderDetail orderDetailDecoder
+                        }
+                    )
 
         GotFruit result ->
             case result of
@@ -216,10 +277,30 @@ update msg model =
                     ( { model | storeList = [] }
                     , Cmd.none
                     )
-        _ ->
-            ( model
-            , Cmd.none
-            )
+
+        GotCustomer result ->
+            case result of
+                Ok customer ->
+                    ( { model | customer = customer }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | customer = noCustomer }
+                    , Cmd.none
+                    )
+
+        GotOrderDetail result ->
+            case result of
+                Ok order ->
+                    ( { model | order = order }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | order = noOrder }
+                    , Cmd.none
+                    )
 
 
 
@@ -234,6 +315,8 @@ view model =
         , viewFruitListItem "果物（複数）" GetFruitList model.fruitList
         , viewStoreItem "店舗" GetStore model.store
         , viewStoreListItem "店舗（複数）" GetStoreList model.storeList
+        , viewCustomerItem "顧客情報" GetCustomer model.customer
+        , viewOrderDetailItem "注文情報" GetOrderDetail model.order
         ]
 
 
@@ -312,6 +395,108 @@ viewStoreListItem label endpoint storeList =
         [ h2 [] [ text label ]
         , viewGetterButton endpoint label
         , div [] showItem
+        , hr [] []
+        ]
+
+
+viewCustomerItem : String -> Endpoint -> Customer -> Html Msg
+viewCustomerItem label endpoint customer =
+    let
+        showItem =
+            div []
+                [ p [] [ text customer.username ]
+                , p [] [ text customer.email ]
+                , p []
+                    [ text <|
+                        if customer.isVip == True then
+                            "☆VIP☆"
+
+                        else
+                            ""
+                    ]
+                ]
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , div [] [ showItem ]
+        , hr [] []
+        ]
+
+
+viewOrderDetailItem : String -> Endpoint -> OrderDetail -> Html Msg
+viewOrderDetailItem label endpoint order =
+    let
+        customer =
+            order.customer
+
+        customerItem =
+            div []
+                [ h3 [] [ text "顧客情報" ]
+                , p [] [ text customer.username ]
+                , p [] [ text customer.email ]
+                , p []
+                    [ text <|
+                        if customer.isVip == True then
+                            "☆VIP☆"
+
+                        else
+                            ""
+                    ]
+                ]
+
+        store =
+            order.store
+
+        storeOwner =
+            case store.owner of
+                Nothing ->
+                    Html.text ""
+
+                Just owner ->
+                    p [] [ text owner ]
+
+        storeItem =
+            div []
+                [ h3 [] [ text "店舗情報" ]
+                , p [] [ text store.address ]
+                , storeOwner
+                ]
+
+        fruitList =
+            order.fruits
+
+        fruitListItem =
+            div []
+                ([ h3 [] [ text "注文内容" ] ]
+                    ++ (fruitList
+                            |> List.map
+                                (\fruit ->
+                                    p []
+                                        [ text <| fruit.name ++ " / "
+                                        , text <| String.fromInt fruit.price ++ " Yen / "
+                                        , text <| String.fromInt fruit.amount ++ " pcs"
+                                        ]
+                                )
+                       )
+                )
+        totalPrice =
+            fruitList 
+                |> List.map (\fruit -> fruit.price * fruit.amount)
+                |> List.foldl (+) 0
+
+        totalPriceItem = 
+            div [] 
+                [ h3 [] [ text "合計"]
+                , p [] [ text <| String.fromInt totalPrice ++ " JPY"]]
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , customerItem
+        , storeItem
+        , fruitListItem
+        , totalPriceItem
         , hr [] []
         ]
 
