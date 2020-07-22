@@ -1,12 +1,11 @@
 module Fruits exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, h1, h2, hr, pre, text)
+import Html exposing (Html, button, div, h1, h2, h3, hr, li, p, text, ul)
 import Html.Events exposing (onClick)
 import Http
-import Json.Decode as D exposing (Decoder, field, int, string)
-import Html exposing (p)
-import Json.Decode exposing (list)
+import Json.Decode as D exposing (Decoder, field, int, list, string, succeed)
+import Json.Decode.Pipeline exposing (optional, required, hardcoded)
 
 
 
@@ -25,11 +24,11 @@ baseApiUrl =
 initialModel : Model
 initialModel =
     { fruit = noFruit
-    , fruitList = [] 
-    , store = ""
-    , storeList = ""
-    , customer = ""
-    , order = ""
+    , fruitList = []
+    , store = noStore
+    , storeList = []
+    , customer = noCustomer
+    , order = noOrder
     }
 
 
@@ -40,22 +39,72 @@ initialModel =
 type alias Model =
     { fruit : Fruit
     , fruitList : List Fruit
-    , store : String
-    , storeList : String
-    , customer : String
-    , order : String
+    , store : Store
+    , storeList : List Store
+    , customer : Customer
+    , order : OrderDetail
     }
 
-type alias Fruit = 
+
+type alias Fruit =
     { name : String
     , price : Int
+    , amount : Int
     }
 
-noFruit : Fruit 
-noFruit = 
-    { name= ""
-    , price= 0
+
+type alias Store =
+    { address : String
+    , owner : Maybe String
     }
+
+
+type alias Customer =
+    { username : String
+    , email : String
+    , isVip : Bool
+    }
+
+
+type alias OrderDetail =
+    { customer : Customer
+    , store : Store
+    , fruits : List Fruit
+    , tantosha : String
+    }
+
+
+noFruit : Fruit
+noFruit =
+    { name = ""
+    , price = 0
+    , amount = 0
+    }
+
+
+noStore : Store
+noStore =
+    { address = ""
+    , owner = Nothing
+    }
+
+
+noCustomer : Customer
+noCustomer =
+    { username = ""
+    , email = ""
+    , isVip = False
+    }
+
+
+noOrder : OrderDetail
+noOrder =
+    { customer = noCustomer
+    , store = noStore
+    , fruits = []
+    , tantosha = ""
+    }
+
 
 type Endpoint
     = GetFruit
@@ -63,7 +112,7 @@ type Endpoint
     | GetStore
     | GetStoreList
     | GetCustomer
-    | GetOrder
+    | GetOrderDetail
 
 
 
@@ -74,25 +123,58 @@ type Msg
     = GetData Endpoint
     | GotFruit (Result Http.Error Fruit)
     | GotFruitList (Result Http.Error (List Fruit))
-    | GotStore (Result Http.Error String)
-    | GotStoreList (Result Http.Error String)
-    | GotCustomer (Result Http.Error String)
-    | GotOrder (Result Http.Error String)
+    | GotStore (Result Http.Error Store)
+    | GotStoreList (Result Http.Error (List Store))
+    | GotCustomer (Result Http.Error Customer)
+    | GotOrderDetail (Result Http.Error OrderDetail)
 
 
 
--- DECODER
+-- DECODERS
 
 
 fruitDecoder : Decoder Fruit
 fruitDecoder =
-    D.map2 Fruit
-        (field "name" string)
-        (field "price" int)
+    D.succeed Fruit
+        |> required "name" D.string
+        |> required "price" D.int
+        |> optional "amount" D.int 0
 
 fruitListDecoder : Decoder (List Fruit)
-fruitListDecoder = 
+fruitListDecoder =
     field "fruits" (list fruitDecoder)
+
+
+storeDecoder : Decoder Store
+storeDecoder =
+    D.succeed Store
+        |> required "address" D.string
+        |> optional "owner" (D.map Just D.string) Nothing
+
+
+storeListDecoder : Decoder (List Store)
+storeListDecoder =
+    field "stores" (list storeDecoder)
+
+
+customerDecoder : Decoder Customer
+customerDecoder =
+    D.succeed Customer
+        |> required "username" D.string
+        |> required "email" D.string
+        |> required "isVip" D.bool
+
+
+orderDetailDecoder : String -> Decoder OrderDetail
+orderDetailDecoder tanto =
+    field "order_details"
+        (D.succeed OrderDetail
+            |> required "customer" customerDecoder
+            |> required "store" storeDecoder
+            |> required "fruits" (list fruitDecoder)
+            |> hardcoded tanto
+        )
+
 
 
 -- UPDATE
@@ -119,8 +201,37 @@ update msg model =
                         }
                     )
 
-                _ ->
-                    ( model, Cmd.none )
+                GetStore ->
+                    ( { model | store = noStore }
+                    , Http.get
+                        { url = baseApiUrl ++ "store"
+                        , expect = Http.expectJson GotStore storeDecoder
+                        }
+                    )
+
+                GetStoreList ->
+                    ( { model | storeList = [] }
+                    , Http.get
+                        { url = baseApiUrl ++ "stores"
+                        , expect = Http.expectJson GotStoreList storeListDecoder
+                        }
+                    )
+
+                GetCustomer ->
+                    ( { model | customer = noCustomer }
+                    , Http.get
+                        { url = baseApiUrl ++ "customer"
+                        , expect = Http.expectJson GotCustomer customerDecoder
+                        }
+                    )
+
+                GetOrderDetail ->
+                    ( { model | order = noOrder }
+                    , Http.get
+                        { url = baseApiUrl ++ "order"
+                        , expect = Http.expectJson GotOrderDetail (orderDetailDecoder "matsu")
+                        }
+                    )
 
         GotFruit result ->
             case result of
@@ -146,10 +257,53 @@ update msg model =
                     , Cmd.none
                     )
 
-        _ ->
-            ( model
-            , Cmd.none
-            )
+        GotStore result ->
+            case result of
+                Ok store ->
+                    ( { model | store = store }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | store = noStore }
+                    , Cmd.none
+                    )
+
+        GotStoreList result ->
+            case result of
+                Ok storelist ->
+                    ( { model | storeList = storelist }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | storeList = [] }
+                    , Cmd.none
+                    )
+
+        GotCustomer result ->
+            case result of
+                Ok customer ->
+                    ( { model | customer = customer }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | customer = noCustomer }
+                    , Cmd.none
+                    )
+
+        GotOrderDetail result ->
+            case result of
+                Ok order ->
+                    ( { model | order = order }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( { model | order = noOrder }
+                    , Cmd.none
+                    )
 
 
 
@@ -162,15 +316,21 @@ view model =
         [ h1 [] [ text "果物販売管理システム 🍇🍍🍒" ]
         , viewFruitItem "果物" GetFruit model.fruit
         , viewFruitListItem "果物（複数）" GetFruitList model.fruitList
+        , viewStoreItem "店舗" GetStore model.store
+        , viewStoreListItem "店舗（複数）" GetStoreList model.storeList
+        , viewCustomerItem "顧客情報" GetCustomer model.customer
+        , viewOrderDetailItem "注文情報" GetOrderDetail model.order
         ]
 
 
 viewFruitItem : String -> Endpoint -> Fruit -> Html Msg
 viewFruitItem label endpoint fruit =
     let
-        showItem = div [] [ p [] [ text fruit.name ]
-                          , p [] [ text <| String.fromInt fruit.price]
-                          ]
+        showItem =
+            div []
+                [ p [] [ text fruit.name ]
+                , p [] [ text <| String.fromInt fruit.price ]
+                ]
     in
     div []
         [ h2 [] [ text label ]
@@ -179,11 +339,13 @@ viewFruitItem label endpoint fruit =
         , hr [] []
         ]
 
+
 viewFruitListItem : String -> Endpoint -> List Fruit -> Html Msg
 viewFruitListItem label endpoint fruitList =
     let
-        showItem = fruitList |> 
-                    List.map (\fruit -> (p [] [ text fruit.name, text <| String.fromInt fruit.price]))
+        showItem =
+            fruitList
+                |> List.map (\fruit -> p [] [ text fruit.name, text <| String.fromInt fruit.price ])
     in
     div []
         [ h2 [] [ text label ]
@@ -193,16 +355,136 @@ viewFruitListItem label endpoint fruitList =
         ]
 
 
-viewItem : String -> Endpoint -> String -> Html Msg
-viewItem label endpoint item =
+viewStoreItem : String -> Endpoint -> Store -> Html Msg
+viewStoreItem label endpoint store =
     let
+        storeOwner =
+            case store.owner of
+                Nothing ->
+                    Html.text ""
+
+                Just owner ->
+                    p [] [ text owner ]
+
         showItem =
-            pre [] [ text item ]
+            div []
+                [ p [] [ text store.address ]
+                , storeOwner
+                ]
     in
     div []
         [ h2 [] [ text label ]
         , viewGetterButton endpoint label
         , div [] [ showItem ]
+        , hr [] []
+        ]
+
+
+viewStoreListItem : String -> Endpoint -> List Store -> Html Msg
+viewStoreListItem label endpoint storeList =
+    let
+        showItem =
+            storeList
+                |> List.map
+                    (\store ->
+                        ul []
+                            [ li [] [ text ("Address:" ++ store.address) ]
+                            , li [] [ text ("Owner: " ++ Maybe.withDefault "nobody" store.owner) ]
+                            , hr [] []
+                            ]
+                    )
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , div [] showItem
+        , hr [] []
+        ]
+
+
+viewCustomerItem : String -> Endpoint -> Customer -> Html Msg
+viewCustomerItem label endpoint customer =
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , renderCustomerElement customer
+        , hr [] []
+        ]
+
+renderCustomerElement : Customer -> Html msg
+renderCustomerElement customer =
+    div []
+        [ h3 [] [ text "顧客情報" ]
+        , p [] [ text customer.username ]
+        , p [] [ text customer.email ]
+        , p []
+            [ text <|
+                if customer.isVip == True then
+                    "☆VIP☆"
+
+                else
+                    ""
+            ]
+        ]
+
+
+
+viewOrderDetailItem : String -> Endpoint -> OrderDetail -> Html Msg
+viewOrderDetailItem label endpoint order =
+    let
+        store =
+            order.store
+
+        storeOwner =
+            case store.owner of
+                Nothing ->
+                    Html.text ""
+
+                Just owner ->
+                    p [] [ text owner ]
+
+        storeItem =
+            div []
+                [ h3 [] [ text "店舗情報" ]
+                , p [] [ text store.address ]
+                , storeOwner
+                ]
+
+        fruitList =
+            order.fruits
+
+        fruitListItem =
+            div []
+                ([ h3 [] [ text "注文内容" ] ]
+                    ++ (fruitList
+                            |> List.map
+                                (\fruit ->
+                                    p []
+                                        [ text <| fruit.name ++ " / "
+                                        , text <| String.fromInt fruit.price ++ " Yen / "
+                                        , text <| String.fromInt fruit.amount ++ " pcs"
+                                        ]
+                                )
+                       )
+                )
+        totalPrice =
+            fruitList 
+                |> List.map (\fruit -> fruit.price * fruit.amount)
+                |> List.foldl (+) 0
+
+        totalPriceItem = 
+            div [] 
+                [ h3 [] [ text "合計"]
+                , p [] [ text <| String.fromInt totalPrice ++ " JPY"]]
+    in
+    div []
+        [ h2 [] [ text label ]
+        , viewGetterButton endpoint label
+        , renderCustomerElement order.customer
+        , storeItem
+        , fruitListItem
+        , totalPriceItem
+        , p [ ] [ text <| "tantosha " ++ order.tantosha ]
         , hr [] []
         ]
 
